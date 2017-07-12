@@ -1,4 +1,5 @@
 #$update_channel="alpha"
+#$is_windows=true
 
 #$controller_count=1
 #$controller_vm_memory=512

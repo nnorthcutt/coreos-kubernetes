@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+set -e
+
+# We can't use the shell("command") execute since it uses the windows shell
+# so this script is used to invoke the appropriate commands from the
+# Vagrantfile in the multi-node cluster.  Have not tested with single node
+# No error handling... =\
+
+SSL_DIR="$1"
+
+if [ -z "$1" ]; then
+   echo "USAGE $0 <output-dir> [num workers]"
+   echo "  example: $0 ./ssl"
+fi
+
+if [ -d $SSL_DIR ]; then
+   echo "Removing old certificates..."
+   rm -rf $SSL_DIR
+fi
+
+echo "Creating new ssl folder..."
+mkdir -p $SSL_DIR
+
+echo "Generating CA certificates..."
+${BASH_SOURCE%/*}/init-ssl-ca-win $SSL_DIR
+${BASH_SOURCE%/*}/init-ssl-win $SSL_DIR admin kube-admin
+
+echo "Creating controller ssl..."
+${BASH_SOURCE%/*}/init-ssl-win $SSL_DIR apiserver kube-apiserver-172.17.4.101 IP.1=172.17.4.101
+
+NUM_WORKERS=1
+
+if [ ! -z "$2" ]; then
+   echo "Configuring ssl for $2 workers"
+   NUM_WORKERS=$2
+fi
+
+for ((i=1;i<=NUM_WORKERS;i++)); do
+   echo "Creating worker $i ssl..."
+   IP="172.17.4.$((200+$i))"
+   ${BASH_SOURCE%/*}/init-ssl-win $SSL_DIR worker kube-worker-$IP IP.1=$IP
+done
